@@ -181,63 +181,14 @@ button:disabled {
 .dot:nth-child(1) { animation-delay: -0.32s; }
 .dot:nth-child(2) { animation-delay: -0.16s; }
 
-/* カルーセルのスタイル */
-.carousel-wrapper {
-    margin: 20px 0;
-    width: 100%;
+.suggested-questions {
+    margin-top: 16px;
 }
 
-.carousel {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 16/9;
-    overflow: hidden;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.carousel-container {
-    position: relative;
-    width: 100%;
-    height: 100%;
-}
-
-.carousel-slide {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    transition: all 0.5s ease;
-}
-
-.carousel-slide img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.carousel-indicators {
-    position: absolute;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 8px;
-}
-
-.carousel-indicator {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.5);
-    border: none;
-    cursor: pointer;
-    padding: 0;
-}
-
-.carousel-indicator.active {
-    background: white;
+.suggested-questions p {
+    font-size: 14px;
+    color: #4b5563;
+    margin-bottom: 8px;
 }
 
 @keyframes fadeIn {
@@ -273,10 +224,6 @@ button:disabled {
 
     .message {
         max-width: 90%;
-    }
-
-    .carousel {
-        aspect-ratio: 4/3;
     }
 }
 
