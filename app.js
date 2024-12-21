@@ -1,46 +1,8 @@
 const { useState, useEffect, useRef } = React;
 
-// カルーセルコンポーネント
-function ImageCarousel({ images }) {
-    const [currentIndex, setCurrentIndex] = useState(0);
+// React 18用のcreateRootを使用
+const root = ReactDOM.createRoot(document.getElementById('root'));
 
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setCurrentIndex((current) => (current + 1) % images.length);
-        }, 5000);
-        return () => clearInterval(interval);
-    }, [images.length]);
-
-    return (
-        <div className="carousel">
-            <div className="carousel-container">
-                {images.map((image, index) => (
-                    <div
-                        key={index}
-                        className="carousel-slide"
-                        style={{
-                            transform: `translateX(${100 * (index - currentIndex)}%)`,
-                            opacity: index === currentIndex ? 1 : 0
-                        }}
-                    >
-                        <img src={image.url} alt={image.alt} />
-                    </div>
-                ))}
-            </div>
-            <div className="carousel-indicators">
-                {images.map((_, index) => (
-                    <button
-                        key={index}
-                        className={`carousel-indicator ${index === currentIndex ? 'active' : ''}`}
-                        onClick={() => setCurrentIndex(index)}
-                    />
-                ))}
-            </div>
-        </div>
-    );
-}
-
-// ローディングドットコンポーネント
 function LoadingDots() {
     return (
         <div className="loading-dots">
@@ -51,57 +13,40 @@ function LoadingDots() {
     );
 }
 
-// メインアプリケーション
 function App() {
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [suggestedQuestions, setSuggestedQuestions] = useState([]);
     const messagesEndRef = useRef(null);
-    const [showCarousel, setShowCarousel] = useState(false);
 
-    // サービス紹介用の画像
-    const serviceImages = [
-        { 
-            url: 'images/service-1.jpg', 
-            alt: 'ninben.ai サービス概要 1' 
-        },
-        { 
-            url: 'images/service-2.jpg', 
-            alt: 'ninben.ai サービス概要 2' 
-        },
-        { 
-            url: 'images/service-3.jpg', 
-            alt: 'ninben.ai サービス概要 3' 
-        }
-    ];
-
-    // 事例紹介用の画像
-    const caseStudyImages = [
-        { 
-            url: 'images/case-1.jpg', 
-            alt: '導入事例 1' 
-        },
-        { 
-            url: 'images/case-2.jpg', 
-            alt: '導入事例 2' 
-        },
-        { 
-            url: 'images/case-3.jpg', 
-            alt: '導入事例 3' 
-        }
-    ];
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
 
     useEffect(() => {
-        const initialMessage = `ninben.ai へようこそ！
-AI技術を活用して、あなたのビジネスをサポートします。
-サービスについて詳しく知りたい方は、下記のクイックリプライボタンをご利用ください。`;
+        const userAgent = window.navigator.userAgent;
+        const deviceType = /Mobile|iP(hone|od|ad)|Android|BlackBerry|IEMobile/.test(userAgent) ? 'モバイル' : 'デスクトップ';
+        const browserName = getBrowserName(userAgent);
+
+        const initialMessage = `${deviceType}の${browserName}ブラウザでお越しいただき、ありがとうございます！
+ninben.aiへようこそ。あなたの仕事をLINEとAIで奪ってみませんか？`;
 
         setMessages([{ role: 'assistant', content: initialMessage }]);
     }, []);
 
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        scrollToBottom();
     }, [messages]);
+
+    const getBrowserName = (userAgent) => {
+        if (userAgent.indexOf("Chrome") > -1) return "Chrome";
+        if (userAgent.indexOf("Safari") > -1) return "Safari";
+        if (userAgent.indexOf("Firefox") > -1) return "Firefox";
+        if (userAgent.indexOf("MSIE") > -1 || userAgent.indexOf("Trident/") > -1) return "Internet Explorer";
+        if (userAgent.indexOf("Edge") > -1) return "Edge";
+        return "不明なブラウザ";
+    };
 
     const handleSend = async () => {
         if (input.trim() === '') return;
@@ -109,12 +54,6 @@ AI技術を活用して、あなたのビジネスをサポートします。
         setIsLoading(true);
         setMessages(prev => [...prev, { role: 'user', content: input }]);
         setInput('');
-
-        // サービス概要または事例に関する質問かチェック
-        const isServiceQuery = input.includes('サービス概要') || input.includes('ninben.aiについて');
-        const isCaseStudyQuery = input.includes('導入事例') || input.includes('事例');
-        
-        setShowCarousel(isServiceQuery || isCaseStudyQuery);
 
         try {
             const response = await fetch('https://api.dify.ai/v1/chat-messages', {
@@ -137,19 +76,31 @@ AI技術を活用して、あなたのビジネスをサポートします。
             }
 
             const data = await response.json();
-            setMessages(prev => [...prev, { 
-                role: 'assistant', 
-                content: data.answer,
-                showImages: isServiceQuery || isCaseStudyQuery,
-                imageType: isServiceQuery ? 'service' : 'case'
-            }]);
+            
+            // レスポンスの解析と処理
+            try {
+                const parsedData = typeof data.answer === 'string' ? JSON.parse(data.answer) : data.answer;
+                setMessages(prev => [...prev, { 
+                    role: 'assistant', 
+                    content: parsedData.answer || parsedData
+                }]);
+                
+                if (parsedData.suggested_questions) {
+                    setSuggestedQuestions(parsedData.suggested_questions.slice(0, 4));
+                }
+            } catch (e) {
+                // JSONとして解析できない場合は、通常のテキストとして扱う
+                setMessages(prev => [...prev, { 
+                    role: 'assistant', 
+                    content: data.answer
+                }]);
+            }
         } catch (error) {
             console.error('エラー:', error);
             setMessages(prev => [...prev, { 
                 role: 'assistant', 
                 content: `エラーが発生しました: ${error instanceof Error ? error.message : '不明なエラー'}` 
             }]);
-            setShowCarousel(false);
         } finally {
             setIsLoading(false);
         }
@@ -157,9 +108,9 @@ AI技術を活用して、あなたのビジネスをサポートします。
 
     const quickReplies = [
         { label: 'サービス概要', content: 'ninben.aiのサービス概要を教えてください' },
-        { label: '料金プラン', content: '料金プランについて教えてください' },
-        { label: '導入事例', content: '導入事例を教えてください' },
-        { label: 'お問い合わせ', content: 'お問い合わせ方法を教えてください' }
+        { label: '料金プラン', content: 'ninben.aiの料金プランについて教えてください' },
+        { label: '導入事例', content: 'ninben.aiの導入事例を教えてください' },
+        { label: 'お問い合わせ', content: 'ninben.aiへのお問い合わせ方法を教えてください' }
     ];
 
     return (
@@ -170,17 +121,8 @@ AI技術を活用して、あなたのビジネスをサポートします。
                 </div>
                 <div className="card-content">
                     {messages.map((msg, index) => (
-                        <div key={index}>
-                            <div className={`message ${msg.role === 'user' ? 'user-message' : 'assistant-message'}`}>
-                                {msg.content}
-                            </div>
-                            {msg.showImages && (
-                                <div className="carousel-wrapper">
-                                    <ImageCarousel 
-                                        images={msg.imageType === 'service' ? serviceImages : caseStudyImages} 
-                                    />
-                                </div>
-                            )}
+                        <div key={index} className={`message ${msg.role === 'user' ? 'user-message' : 'assistant-message'}`}>
+                            {msg.content}
                         </div>
                     ))}
                     {isLoading && (
@@ -202,6 +144,25 @@ AI技術を活用して、あなたのビジネスをサポートします。
                             </button>
                         ))}
                     </div>
+                    {suggestedQuestions.length > 0 && (
+                        <div className="suggested-questions">
+                            <p>関連する質問：</p>
+                            <div className="grid grid-cols-2 gap-2">
+                                {suggestedQuestions.map((question, index) => (
+                                    <button
+                                        key={index}
+                                        className="quick-reply-button suggested"
+                                        onClick={() => {
+                                            setInput(question);
+                                            setSuggestedQuestions([]);
+                                        }}
+                                    >
+                                        {question}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                     <div className="input-group">
                         <input
                             type="text"
@@ -221,6 +182,4 @@ AI技術を活用して、あなたのビジネスをサポートします。
 }
 
 // React 18のレンダリング方法を使用
-const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App />);
-
